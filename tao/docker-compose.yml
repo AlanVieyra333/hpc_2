@@ -1,0 +1,43 @@
+version: "3.3"
+services:
+  app-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tao:latest
+    command: /app/client -ORBInitRef NameService=corbaloc:iiop:tao-naming-service:8080/NameService
+    container_name: tao-app-client
+    networks:
+      tao-net:
+        aliases:
+          - tao-app-client
+    depends_on:
+      - app-server
+  app-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tao:latest
+    command: /app/server -ORBInitRef NameService=corbaloc:iiop:tao-naming-service:8080/NameService
+    container_name: tao-app-server
+    networks:
+      tao-net:
+        aliases:
+          - tao-app-server
+    depends_on:
+      - naming-service
+  naming-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tao:latest
+    ports:
+      - "8080:8080"
+    command: tao_cosnaming -ORBListenEndpoints iiop://tao-naming-service:8080
+    container_name: tao-naming-service
+    networks:
+      tao-net:
+        aliases:
+          - tao-naming-service
+networks:
+  tao-net:

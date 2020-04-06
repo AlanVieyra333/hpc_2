@@ -1,5 +1,5 @@
 {
     "name": "TAO Container",
     "image": "yongfu/tao_ace:latest",
-    "extensions": ["xaver.clang-format"],
+    "extensions": ["ms-vscode.cpptools"],
   }
