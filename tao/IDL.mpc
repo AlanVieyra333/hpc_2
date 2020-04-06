@@ -1,0 +1,34 @@
+project(NamingService*idl): taoidldefaults {
+  IDL_Files {
+    MultMatriz.idl
+  }
+  custom_only = 1
+}
+
+project(NamingService*Server): namingexe, naming_skel {
+  exename = MultMatrizServer
+  after += NamingService*idl
+  Source_Files {
+    MultMatriz_i.cpp
+    MultMatrizServer.cpp
+  }
+  Source_Files {
+    MultMatrizC.cpp
+    MultMatrizS.cpp
+  }
+  IDL_Files {
+  }
+}
+
+project(NamingService*Client): namingexe {
+  exename = MultMatrizClient
+  after += NamingService*idl
+  Source_Files {
+    MultMatrizClient.cpp
+  }
+  Source_Files {
+    MultMatrizC.cpp
+  }
+  IDL_Files {
+  }
+}

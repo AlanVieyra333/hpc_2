@@ -1,0 +1,8 @@
+#ifndef MULT_MATRIZ_IDL
+#define MULT_MATRIZ_IDL
+
+interface MultMatriz
+{
+    float mult(in float a, in float b);
+};
+#endif

@@ -1,0 +1,8 @@
+.DS_Store
+.obj
+.depend.*
+GNUmakefile*
+*C.*
+*S.*
+*Client
+*Server

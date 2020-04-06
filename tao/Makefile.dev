@@ -1,0 +1,17 @@
+APP=MultMatriz
+
+.PHONY: run build clear
+
+run: build
+	./${APP}Server
+	./${APP}Client
+
+build: ${APP}.idl 
+	tao_idl -Sa -St -GI ${APP}.idl
+	mv ${APP}I.h ${APP}_i.h
+	mv ${APP}I.cpp ${APP}_i.cpp
+	#mwc.pl -type gnuace
+	#make
+
+clear:
+	rm -f *C.* *S.* *I.* *_i.*
