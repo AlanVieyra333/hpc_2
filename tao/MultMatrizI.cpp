@@ -45,7 +45,7 @@ MultMatriz_i::~MultMatriz_i (void)
   ::CORBA::Float b)
 {
   // Add your implementation here
-  printf("a = %f & b = %f", a, b);
+  printf("a = %f & b = %f\n", a, b);
 
   return a*b;
 }
