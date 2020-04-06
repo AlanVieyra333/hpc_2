@@ -47,19 +47,14 @@ int ACE_TMAIN(int argc, ACE_TCHAR *argv[])
       return 1;
     }
 
-    // CORBA::String_var message = CORBA::string_dup("Hello!");
-    // CORBA::Float_var m_a = CORBA::float_dup(10.0);
-    // CORBA::Float_var m_b = CORBA::float_dup(3.0);
-    float m_a = 10.0;
-    float m_b = 3.0;
+    CORBA::Float m_a = CORBA::Float(10.0);
+    CORBA::Float m_b = CORBA::Float(3.0);
 
     // Send a message
-    // multMatriz->mult("TAO User", "TAO Test", message.inout());
     float res_mult = multMatriz->mult(m_a, m_b);
 
     std::cout << "Message was sent" << std::endl;
-
-    std::cout << "Mult: " << res_mult << std::endl;
+    std::cout << "Result: " << res_mult << std::endl;
 
     orb->destroy();
   }
