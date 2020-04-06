@@ -1,4 +1,4 @@
-#include "MultMatriz_i.h"
+#include "MultMatrizI.h"
 #include "orbsvcs/CosNamingC.h"
 #include <iostream>
 

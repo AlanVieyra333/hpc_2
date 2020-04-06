@@ -9,7 +9,7 @@ project(NamingService*Server): namingexe, naming_skel {
   exename = MultMatrizServer
   after += NamingService*idl
   Source_Files {
-    MultMatriz_i.cpp
+    MultMatrizI.cpp
     MultMatrizServer.cpp
   }
   Source_Files {
