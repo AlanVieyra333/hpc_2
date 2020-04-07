@@ -24,13 +24,15 @@ void strassen(vector<vector<double>> &A, vector<vector<double>> &B,
 unsigned int nextPowerOfTwo(int n);
 void strassenR(vector<vector<double>> &A, vector<vector<double>> &B,
                vector<vector<double>> &C, int tam);
-void sum(vector<vector<double>> &A, vector<vector<double>> &B, vector<vector<double>> &C,
-         int tam);
+void sum(vector<vector<double>> &A, vector<vector<double>> &B,
+         vector<vector<double>> &C, int tam);
 void subtract(vector<vector<double>> &A, vector<vector<double>> &B,
               vector<vector<double>> &C, int tam);
 
 void printMatrix(vector<vector<double>> matrix, int n);
 void read(string filename, vector<vector<double>> &matrix);
+
+unsigned int nextPowerOfTwo(int n) { return pow(2, int(ceil(log2(n)))); }
 
 void ikjalgorithm(vector<vector<double>> A, vector<vector<double>> B,
                   vector<vector<double>> &C, int n) {
@@ -48,10 +50,7 @@ void strassenR(vector<vector<double>> &A, vector<vector<double>> &B,
   if (tam <= LEAF_SIZE) {
     ikjalgorithm(A, B, C, tam);
     return;
-  }
-
-  // other cases are treated here:
-  else {
+  } else {  // other cases are treated here:
     int newTam = tam / 2;
     vector<double> inner(newTam);
     vector<vector<double>> a11(newTam, inner), a12(newTam, inner),
@@ -131,8 +130,6 @@ void strassenR(vector<vector<double>> &A, vector<vector<double>> &B,
   }
 }
 
-unsigned int nextPowerOfTwo(int n) { return pow(2, int(ceil(log2(n)))); }
-
 void strassen(vector<vector<double>> &A, vector<vector<double>> &B,
               vector<vector<double>> &C, unsigned int n) {
   // unsigned int n = tam;
@@ -140,6 +137,7 @@ void strassen(vector<vector<double>> &A, vector<vector<double>> &B,
   vector<double> inner(m);
   vector<vector<double>> APrep(m, inner), BPrep(m, inner), CPrep(m, inner);
 
+  // TODO: implement memcpy
   for (unsigned int i = 0; i < n; i++) {
     for (unsigned int j = 0; j < n; j++) {
       APrep[i][j] = A[i][j];
@@ -148,6 +146,7 @@ void strassen(vector<vector<double>> &A, vector<vector<double>> &B,
   }
 
   strassenR(APrep, BPrep, CPrep, m);
+
   for (unsigned int i = 0; i < n; i++) {
     for (unsigned int j = 0; j < n; j++) {
       C[i][j] = CPrep[i][j];
@@ -155,8 +154,8 @@ void strassen(vector<vector<double>> &A, vector<vector<double>> &B,
   }
 }
 
-void sum(vector<vector<double>> &A, vector<vector<double>> &B, vector<vector<double>> &C,
-         int tam) {
+void sum(vector<vector<double>> &A, vector<vector<double>> &B,
+         vector<vector<double>> &C, int tam) {
   int i, j;
 
   for (i = 0; i < tam; i++) {
@@ -236,7 +235,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  printf("Tamano: %d\n", n);
+  printf("Tamano: %dx%d\n", n, n);
 
   vector<double> inner(n);
   vector<vector<double>> A(n, inner), B(n, inner), C(n, inner);
@@ -244,9 +243,15 @@ int main(int argc, char *argv[]) {
   read(filename_a, A);
   read(filename_b, B);
 
+  clock_t t1, t2;
+  t1 = clock();
   strassen(A, B, C, n);
-  
-  printMatrix(C, n);
+  t2 = clock();
+
+  printf("Time: %lf seg.\n",
+         ((((float)t2 - (float)t1) / CLOCKS_PER_SEC)));
+
+  // printMatrix(C, n);
 
   return 0;
 }
