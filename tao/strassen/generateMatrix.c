@@ -5,7 +5,7 @@
  * ./generateMatrix.o 1000
  *
  * @author Alan Fernando Rincón Vieyra
- * @date 6/Marzo/2020
+ * @date 6/April/2020
  */
 
 #include <stdio.h>
