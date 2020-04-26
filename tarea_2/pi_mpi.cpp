@@ -11,7 +11,7 @@
 #include <math.h>
 #include <sys/time.h>
 
-#define NE   100000000
+#define NE  100000000
 
 class Rand {
 private:
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     if (rank==0) {
         mi_pi = 4.0*((double)teb/((double)size*NE));
         printf("Aproximado de PI = %lf\n", mi_pi);
-        printf("El de miath.h es %lf\n", M_PI);
+        printf("El de math.h es %lf\n", M_PI);
     }
     
     MPI_Finalize();
