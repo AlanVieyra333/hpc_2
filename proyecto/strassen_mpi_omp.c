@@ -19,7 +19,7 @@
 // Set LEAF_SIZE to 1 if you want to the pure strassen algorithm
 // otherwise, the ikj-algorithm will be applied when the split
 // matrices are as small as LEAF_SIZE x LEAF_SIZE
-#define LEAF_SIZE 128
+#define LEAF_SIZE 512
 #define MAXCHAR 1024 * 1024
 
 /*
@@ -46,7 +46,7 @@ uint32_t nextPowerOfTwo(uint32_t x) { return pow(2, (int)ceil(log2(x))); }
 void ikjalgorithm(double *A, double *B, double *C, uint32_t tam) {
   int i, j, k;
 
-#pragma omp parallel for private(k, j)
+  #pragma omp parallel for private(k, j)
   for (i = 0; i < tam; i++) {
     for (k = 0; k < tam; k++) {
       for (j = 0; j < tam; j++) {
@@ -57,6 +57,8 @@ void ikjalgorithm(double *A, double *B, double *C, uint32_t tam) {
 }
 
 void strassen(double *A, double *B, double *C, uint32_t tam) {
+  // printf("El proceso %d,%d se inicia.\n", rank, omp_get_thread_num());
+
   if (tam <= LEAF_SIZE) {
     ikjalgorithm(A, B, C, tam);
     return;
@@ -74,6 +76,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
     double *c12 = createMatrix(newTam);
     double *c21 = createMatrix(newTam);
     double *c22 = createMatrix(newTam);
+
     double *p1 = createMatrix(newTam);
     double *p2 = createMatrix(newTam);
     double *p3 = createMatrix(newTam);
@@ -82,36 +85,50 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
     double *p6 = createMatrix(newTam);
     double *p7 = createMatrix(newTam);
 
-// dividing the matrices in 4 sub-matrices:
-#pragma omp task
+    // dividing the matrices in 4 sub-matrices: ##########################
+
+#pragma omp task depend(out                                \
+                        : a11) depend(out                  \
+                                      : a12) depend(out    \
+                                                    : a21) \
+    depend(out                                             \
+           : a22) 
     { divide_m(A, a11, a12, a21, a22, tam); }
-#pragma omp task
+#pragma omp task depend(out                                \
+                        : a11) depend(out                  \
+                                      : a12) depend(out    \
+                                                    : a21) \
+    depend(out                                             \
+           : a22) 
     { divide_m(B, b11, b12, b21, b22, tam); }
 
-#pragma omp taskwait
+    // Calculating p1 to p7: #############################################
 
-    // Calculating p1 to p7:
-
-#pragma omp task
+#pragma omp task depend(in                                               \
+                        : a11) depend(in                                 \
+                                      : a22) depend(in                   \
+                                                    : b11) depend(in     \
+                                                                  : b22) \
+    depend(out                                                           \
+           : p1) 
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
 
-#pragma omp task
-      {
-        sum(a11, a22, result1, newTam);  // a11 + a22
-      }
-#pragma omp task
-      {
-        sum(b11, b22, result2, newTam);  // b11 + b22
-      }
-#pragma omp taskwait
+      sum(a11, a22, result1, newTam);  // a11 + a22
+      sum(b11, b22, result2, newTam);  // b11 + b22
+
       strassen(result1, result2, p1, newTam);  // p1 = (a11+a22) * (b11+b22)
 
       free(result1);
       free(result2);
     }
-#pragma omp task
+#pragma omp task depend(in                                 \
+                        : a21) depend(in                   \
+                                      : a22) depend(in     \
+                                                    : b11) \
+    depend(out                                             \
+           : p2) 
     {
       double *result1 = createMatrix(newTam);
 
@@ -120,7 +137,12 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
 
       free(result1);
     }
-#pragma omp task
+#pragma omp task depend(in                                 \
+                        : b12) depend(in                   \
+                                      : b22) depend(in     \
+                                                    : b11) \
+    depend(out                                             \
+           : p3) 
     {
       double *result1 = createMatrix(newTam);
 
@@ -129,7 +151,12 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
 
       free(result1);
     }
-#pragma omp task
+#pragma omp task depend(in                                 \
+                        : b21) depend(in                   \
+                                      : b11) depend(in     \
+                                                    : a22) \
+    depend(out                                             \
+           : p4) 
     {
       double *result1 = createMatrix(newTam);
 
@@ -138,7 +165,12 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
 
       free(result1);
     }
-#pragma omp task
+#pragma omp task depend(in                                 \
+                        : a11) depend(in                   \
+                                      : a12) depend(in     \
+                                                    : b22) \
+    depend(out                                             \
+           : p5) 
     {
       double *result1 = createMatrix(newTam);
 
@@ -147,57 +179,61 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
 
       free(result1);
     }
-#pragma omp task
+#pragma omp task depend(in                                               \
+                        : a21) depend(in                                 \
+                                      : a11) depend(in                   \
+                                                    : b11) depend(in     \
+                                                                  : b12) \
+    depend(out                                                           \
+           : p6) 
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
 
-#pragma omp task
-      {
-        subtract(a21, a11, result1, newTam);  // a21 - a11
-      }
-#pragma omp task
-      {
-        sum(b11, b12, result2, newTam);  // b11 + b12
-      }
-#pragma omp taskwait
+      subtract(a21, a11, result1, newTam);     // a21 - a11
+      sum(b11, b12, result2, newTam);          // b11 + b12
       strassen(result1, result2, p6, newTam);  // p6 = (a21-a11) * (b11+b12)
 
       free(result1);
       free(result2);
     }
-#pragma omp task
+#pragma omp task depend(in                                               \
+                        : a12) depend(in                                 \
+                                      : a22) depend(in                   \
+                                                    : b21) depend(in     \
+                                                                  : b22) \
+    depend(out                                                           \
+           : p7) 
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
 
-#pragma omp task
-      {
-        subtract(a12, a22, result1, newTam);  // a12 - a22
-      }
-#pragma omp task
-      {
-        sum(b21, b22, result2, newTam);  // b21 + b22
-      }
-#pragma omp taskwait
+      subtract(a12, a22, result1, newTam);     // a12 - a22
+      sum(b21, b22, result2, newTam);          // b21 + b22
       strassen(result1, result2, p7, newTam);  // p7 = (a12-a22) * (b21+b22)
 
       free(result1);
       free(result2);
     }
 
-#pragma omp taskwait
-
     // calculating c21, c21, c11 e c22:
-#pragma omp task
+    // #############################################
+
+#pragma omp task depend(in : p3) depend(in : p5) depend(out : c12) 
     {
       sum(p3, p5, c12, newTam);  // c12 = p3 + p5
     }
-#pragma omp task
+#pragma omp task depend(in : p2) depend(in : p4) depend(out : c21) 
     {
       sum(p2, p4, c21, newTam);  // c21 = p2 + p4
     }
-#pragma omp task
+#pragma omp task depend(in                                           \
+                        : p1) depend(in                              \
+                                     : p4) depend(in                 \
+                                                  : p5) depend(in    \
+                                                               : p7) \
+    depend(out                                                       \
+           : c11) 
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -209,7 +245,13 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
       free(result1);
       free(result2);
     }
-#pragma omp task
+#pragma omp task depend(in                                           \
+                        : p1) depend(in                              \
+                                     : p2) depend(in                 \
+                                                  : p3) depend(in    \
+                                                               : p6) \
+    depend(out                                                       \
+           : c22) 
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -222,10 +264,18 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
       free(result2);
     }
 
-#pragma omp taskwait
-
     // Grouping the results obtained in a single matrix:
-    group_m(C, c11, c12, c21, c22, tam);
+    // ############################
+
+#pragma omp task depend(in                                 \
+                        : c11) depend(in                   \
+                                      : c12) depend(in     \
+                                                    : c21) \
+    depend(in                                              \
+           : c22) 
+    { group_m(C, c11, c12, c21, c22, tam); }
+
+#pragma omp taskwait
 
     free(a11);
     free(a12);
@@ -255,7 +305,7 @@ void divide_m(double *M, double *m11, double *m12, double *m21, double *m22,
   int32_t i, j;
   uint32_t newTam = tam / 2;
 
-#pragma omp parallel for private(j)
+  #pragma omp parallel for private(j)
   for (i = 0; i < newTam; i++) {
     for (j = 0; j < newTam; j++) {
       m11[i * newTam + j] = M[i * tam + j];
@@ -272,7 +322,7 @@ void group_m(double *M, double *m11, double *m12, double *m21, double *m22,
   int32_t i, j;
   uint32_t newTam = tam / 2;
 
-#pragma omp parallel for private(j)
+  #pragma omp parallel for private(j)
   for (i = 0; i < newTam; i++) {
     for (j = 0; j < newTam; j++) {
       M[i * tam + j] = m11[i * newTam + j];
@@ -288,7 +338,7 @@ double *matrix_to_mPower(double *M, uint32_t tam) {
   double *MPrep = createMatrix(m);
   int32_t i;
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (i = 0; i < tam; i++) {
     memcpy(&MPrep[i * m], &M[i * tam], sizeof(double) * tam);
   }
@@ -302,7 +352,7 @@ double *mPower_to_matrix(double *MPrep, uint32_t tam) {
   double *M = createMatrix(tam);
   int32_t i;
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (i = 0; i < tam; i++) {
     memcpy(&M[i * tam], &MPrep[i * m], sizeof(double) * tam);
   }
@@ -314,7 +364,7 @@ double *mPower_to_matrix(double *MPrep, uint32_t tam) {
 void sum(double *A, double *B, double *C, uint32_t tam) {
   int32_t i, j;
 
-#pragma omp parallel for private(j)
+  // #pragma omp parallel for private(j)
   for (i = 0; i < tam; i++) {
     for (j = 0; j < tam; j++) {
       C[i * tam + j] = A[i * tam + j] + B[i * tam + j];
@@ -325,7 +375,7 @@ void sum(double *A, double *B, double *C, uint32_t tam) {
 void subtract(double *A, double *B, double *C, uint32_t tam) {
   int32_t i, j;
 
-#pragma omp parallel for private(j)
+  // #pragma omp parallel for private(j)
   for (i = 0; i < tam; i++) {
     for (j = 0; j < tam; j++) {
       C[i * tam + j] = A[i * tam + j] - B[i * tam + j];
@@ -416,14 +466,13 @@ double *createMatrix(uint32_t tam) {
 }
 
 void strassen_mpi(double *A, double *B, double *C, int tam, int rank, int np) {
+  // printf("El proceso %d,%d se inicia.\n", rank, omp_get_thread_num());
+
 #pragma omp parallel
   {
-    // printf("El proceso %d,%d se inicia.\n", rank, omp_get_thread_num());
-
 #pragma omp single
     {
-      if (rank == 0)
-      {
+      if (rank == 0) {
         strassen(A, B, C, tam);  // TODO: rank
       }
     }

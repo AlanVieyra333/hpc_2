@@ -1,5 +1,5 @@
 APP=strassen_mpi_omp
-ARGS=matrix_1000.txt matrix_1000.txt
+ARGS=matrix_2000.txt matrix_2000.txt
 NUM_THREADS=4
 PROC=2
 
