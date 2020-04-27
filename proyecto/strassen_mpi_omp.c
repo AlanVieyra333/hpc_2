@@ -27,8 +27,11 @@
  * http://en.wikipedia.org/w/index.php?title=Strassen_algorithm&oldid=498910018#Source_code_of_the_Strassen_algorithm_in_C_language
  */
 
-void preproc_strassen(double *A, double *B, double *C, uint32_t tam);
 void strassen(double *A, double *B, double *C, uint32_t tam);
+void divide_m(double *M, double *m11, double *m12, double *m21, double *m22,
+              uint32_t tam);
+void group_m(double *M, double *m11, double *m12, double *m21, double *m22,
+             uint32_t tam);
 void sum(double *A, double *B, double *C, uint32_t tam);
 void subtract(double *A, double *B, double *C, uint32_t tam);
 void readMatrix(char *filename, double *matrix);
@@ -39,9 +42,12 @@ double *createMatrix(uint32_t tam);
 uint32_t nextPowerOfTwo(uint32_t n) { return pow(2, (int)ceil(log2(n))); }
 
 void ikjalgorithm(double *A, double *B, double *C, uint32_t tam) {
-  for (int i = 0; i < tam; i++) {
-    for (int k = 0; k < tam; k++) {
-      for (int j = 0; j < tam; j++) {
+  int i, j, k;
+
+#pragma omp parallel for private(k, j)
+  for (i = 0; i < tam; i++) {
+    for (k = 0; k < tam; k++) {
+      for (j = 0; j < tam; j++) {
         C[i * tam + j] += A[i * tam + k] * B[k * tam + j];
       }
     }
@@ -73,73 +79,151 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
     double *p5 = createMatrix(newTam);
     double *p6 = createMatrix(newTam);
     double *p7 = createMatrix(newTam);
-    double *aResult = createMatrix(newTam);
-    double *bResult = createMatrix(newTam);
 
-    // dividing the matrices in 4 sub-matrices:
-    uint32_t i, j;
-    for (i = 0; i < newTam; i++) {
-      for (j = 0; j < newTam; j++) {
-        a11[i * newTam + j] = A[i * tam + j];
-        a12[i * newTam + j] = A[i * tam + (j + newTam)];
-        a21[i * newTam + j] = A[(i + newTam) * tam + j];
-        a22[i * newTam + j] = A[(i + newTam) * tam + (j + newTam)];
+// dividing the matrices in 4 sub-matrices:
+#pragma omp task
+    { divide_m(A, a11, a12, a21, a22, tam); }
+#pragma omp task
+    { divide_m(B, b11, b12, b21, b22, tam); }
 
-        b11[i * newTam + j] = B[i * tam + j];
-        b12[i * newTam + j] = B[i * tam + (j + newTam)];
-        b21[i * newTam + j] = B[(i + newTam) * tam + j];
-        b22[i * newTam + j] = B[(i + newTam) * tam + (j + newTam)];
-      }
-    }
+#pragma omp taskwait
 
     // Calculating p1 to p7:
 
-    sum(a11, a22, aResult, newTam);           // a11 + a22
-    sum(b11, b22, bResult, newTam);           // b11 + b22
-    strassen(aResult, bResult, p1, newTam);  // p1 = (a11+a22) * (b11+b22)
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+      double *result2 = createMatrix(newTam);
 
-    sum(a21, a22, aResult, newTam);       // a21 + a22
-    strassen(aResult, b11, p2, newTam);  // p2 = (a21+a22) * (b11)
+#pragma omp task
+      {
+        sum(a11, a22, result1, newTam);  // a11 + a22
+      }
+#pragma omp task
+      {
+        sum(b11, b22, result2, newTam);  // b11 + b22
+      }
+#pragma omp taskwait
+      strassen(result1, result2, p1, newTam);  // p1 = (a11+a22) * (b11+b22)
 
-    subtract(b12, b22, bResult, newTam);  // b12 - b22
-    strassen(a11, bResult, p3, newTam);  // p3 = (a11) * (b12 - b22)
+      free(result1);
+      free(result2);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
 
-    subtract(b21, b11, bResult, newTam);  // b21 - b11
-    strassen(a22, bResult, p4, newTam);  // p4 = (a22) * (b21 - b11)
+      sum(a21, a22, result1, newTam);      // a21 + a22
+      strassen(result1, b11, p2, newTam);  // p2 = (a21+a22) * (b11)
 
-    sum(a11, a12, aResult, newTam);       // a11 + a12
-    strassen(aResult, b22, p5, newTam);  // p5 = (a11+a12) * (b22)
+      free(result1);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
 
-    subtract(a21, a11, aResult, newTam);      // a21 - a11
-    sum(b11, b12, bResult, newTam);           // b11 + b12
-    strassen(aResult, bResult, p6, newTam);  // p6 = (a21-a11) * (b11+b12)
+      subtract(b12, b22, result1, newTam);  // b12 - b22
+      strassen(a11, result1, p3, newTam);   // p3 = (a11) * (b12 - b22)
 
-    subtract(a12, a22, aResult, newTam);      // a12 - a22
-    sum(b21, b22, bResult, newTam);           // b21 + b22
-    strassen(aResult, bResult, p7, newTam);  // p7 = (a12-a22) * (b21+b22)
+      free(result1);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+
+      subtract(b21, b11, result1, newTam);  // b21 - b11
+      strassen(a22, result1, p4, newTam);   // p4 = (a22) * (b21 - b11)
+
+      free(result1);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+
+      sum(a11, a12, result1, newTam);      // a11 + a12
+      strassen(result1, b22, p5, newTam);  // p5 = (a11+a12) * (b22)
+
+      free(result1);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+      double *result2 = createMatrix(newTam);
+
+#pragma omp task
+      {
+        subtract(a21, a11, result1, newTam);  // a21 - a11
+      }
+#pragma omp task
+      {
+        sum(b11, b12, result2, newTam);  // b11 + b12
+      }
+#pragma omp taskwait
+      strassen(result1, result2, p6, newTam);  // p6 = (a21-a11) * (b11+b12)
+
+      free(result1);
+      free(result2);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+      double *result2 = createMatrix(newTam);
+
+#pragma omp task
+      {
+        subtract(a12, a22, result1, newTam);  // a12 - a22
+      }
+#pragma omp task
+      {
+        sum(b21, b22, result2, newTam);  // b21 + b22
+      }
+#pragma omp taskwait
+      strassen(result1, result2, p7, newTam);  // p7 = (a12-a22) * (b21+b22)
+
+      free(result1);
+      free(result2);
+    }
+
+#pragma omp taskwait
 
     // calculating c21, c21, c11 e c22:
+#pragma omp task
+    {
+      sum(p3, p5, c12, newTam);  // c12 = p3 + p5
+    }
+#pragma omp task
+    {
+      sum(p2, p4, c21, newTam);  // c21 = p2 + p4
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+      double *result2 = createMatrix(newTam);
 
-    sum(p3, p5, c12, newTam);  // c12 = p3 + p5
-    sum(p2, p4, c21, newTam);  // c21 = p2 + p4
+      sum(p1, p4, result1, newTam);        // p1 + p4
+      sum(result1, p7, result2, newTam);   // p1 + p4 + p7
+      subtract(result2, p5, c11, newTam);  // c11 = p1 + p4 - p5 + p7
 
-    sum(p1, p4, aResult, newTam);        // p1 + p4
-    sum(aResult, p7, bResult, newTam);   // p1 + p4 + p7
-    subtract(bResult, p5, c11, newTam);  // c11 = p1 + p4 - p5 + p7
+      free(result1);
+      free(result2);
+    }
+#pragma omp task
+    {
+      double *result1 = createMatrix(newTam);
+      double *result2 = createMatrix(newTam);
 
-    sum(p1, p3, aResult, newTam);        // p1 + p3
-    sum(aResult, p6, bResult, newTam);   // p1 + p3 + p6
-    subtract(bResult, p2, c22, newTam);  // c22 = p1 + p3 - p2 + p6
+      sum(p1, p3, result1, newTam);        // p1 + p3
+      sum(result1, p6, result2, newTam);   // p1 + p3 + p6
+      subtract(result2, p2, c22, newTam);  // c22 = p1 + p3 - p2 + p6
+
+      free(result1);
+      free(result2);
+    }
+
+#pragma omp taskwait
 
     // Grouping the results obtained in a single matrix:
-    for (i = 0; i < newTam; i++) {
-      for (j = 0; j < newTam; j++) {
-        C[i * tam + j] = c11[i * newTam + j];
-        C[i * tam + (j + newTam)] = c12[i * newTam + j];
-        C[(i + newTam) * tam + j] = c21[i * newTam + j];
-        C[(i + newTam) * tam + (j + newTam)] = c22[i * newTam + j];
-      }
-    }
+    group_m(C, c11, c12, c21, c22, tam);
 
     free(a11);
     free(a12);
@@ -160,37 +244,75 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
     free(p5);
     free(p6);
     free(p7);
-    free(aResult);
-    free(bResult);
   }
 }
 
-void preproc_strassen(double *A, double *B, double *C, uint32_t tam) {
-  // uint32_t m = tam;
+// dividing the matrices in 4 sub-matrices.
+void divide_m(double *M, double *m11, double *m12, double *m21, double *m22,
+              uint32_t tam) {
+  int32_t i, j;
+  uint32_t newTam = tam / 2;
+
+#pragma omp parallel for private(j)
+  for (i = 0; i < newTam; i++) {
+    for (j = 0; j < newTam; j++) {
+      m11[i * newTam + j] = M[i * tam + j];
+      m12[i * newTam + j] = M[i * tam + (j + newTam)];
+      m21[i * newTam + j] = M[(i + newTam) * tam + j];
+      m22[i * newTam + j] = M[(i + newTam) * tam + (j + newTam)];
+    }
+  }
+}
+
+// Grouping the results obtained in a single matrix.
+void group_m(double *M, double *m11, double *m12, double *m21, double *m22,
+             uint32_t tam) {
+  int32_t i, j;
+  uint32_t newTam = tam / 2;
+
+#pragma omp parallel for private(j)
+  for (i = 0; i < newTam; i++) {
+    for (j = 0; j < newTam; j++) {
+      M[i * tam + j] = m11[i * newTam + j];
+      M[i * tam + (j + newTam)] = m12[i * newTam + j];
+      M[(i + newTam) * tam + j] = m21[i * newTam + j];
+      M[(i + newTam) * tam + (j + newTam)] = m22[i * newTam + j];
+    }
+  }
+}
+
+double *matrix_to_mPower(double *M, uint32_t tam) {
   uint32_t m = nextPowerOfTwo(tam);
-  double *APrep = createMatrix(m);
-  double *BPrep = createMatrix(m);
-  double *CPrep = createMatrix(m);
+  double *MPrep = createMatrix(m);
+  int32_t i;
 
-  for (uint32_t i = 0; i < tam; i++) {
-    memcpy(&APrep[i * m], &A[i * tam], sizeof(double) * tam);
-    memcpy(&BPrep[i * m], &B[i * tam], sizeof(double) * tam);
+#pragma omp parallel for
+  for (i = 0; i < tam; i++) {
+    memcpy(&MPrep[i * m], &M[i * tam], sizeof(double) * tam);
   }
 
-  strassen(APrep, BPrep, CPrep, m);
+  free(M);
+  return MPrep;
+}
 
-  for (uint32_t i = 0; i < tam; i++) {
-    memcpy(&C[i * tam], &CPrep[i * m], sizeof(double) * tam);
+double *mPower_to_matrix(double *MPrep, uint32_t tam) {
+  uint32_t m = nextPowerOfTwo(tam);
+  double *M = createMatrix(tam);
+  int32_t i;
+
+#pragma omp parallel for
+  for (i = 0; i < tam; i++) {
+    memcpy(&M[i * tam], &MPrep[i * m], sizeof(double) * tam);
   }
 
-  free(APrep);
-  free(BPrep);
-  free(CPrep);
+  free(MPrep);
+  return M;
 }
 
 void sum(double *A, double *B, double *C, uint32_t tam) {
-  uint32_t i, j;
+  int32_t i, j;
 
+#pragma omp parallel for private(j)
   for (i = 0; i < tam; i++) {
     for (j = 0; j < tam; j++) {
       C[i * tam + j] = A[i * tam + j] + B[i * tam + j];
@@ -199,8 +321,9 @@ void sum(double *A, double *B, double *C, uint32_t tam) {
 }
 
 void subtract(double *A, double *B, double *C, uint32_t tam) {
-  uint32_t i, j;
+  int32_t i, j;
 
+#pragma omp parallel for private(j)
   for (i = 0; i < tam; i++) {
     for (j = 0; j < tam; j++) {
       C[i * tam + j] = A[i * tam + j] - B[i * tam + j];
@@ -221,7 +344,9 @@ int getMatrixSize(char *filename) {
   fgets(line, MAXCHAR, infile);
   fclose(infile);
 
-  for (uint32_t i = 0; line[i] != '\0'; i++) {
+  int32_t i;
+
+  for (i = 0; line[i] != '\0'; i++) {
     if (line[i] == '\t') {
       count++;
     }
@@ -239,7 +364,9 @@ void readMatrix(char *filename, double *matrix) {
   }
 
   double num;
-  for (uint32_t i = 0; fscanf(matrixfile, "%lf", &num) != EOF; i++) {
+  int32_t i;
+
+  for (i = 0; fscanf(matrixfile, "%lf", &num) != EOF; i++) {
     matrix[i] = num;
   }
 
@@ -286,9 +413,22 @@ double *createMatrix(uint32_t tam) {
   return matrix;
 }
 
+void strassen_mpi(double *A, double *B, double *C, int n, int rank, int np) {
+#pragma omp parallel
+  {
+    // printf("El proceso %d,%d se inicia.\n", rank, omp_get_thread_num());
+
+#pragma omp single
+    {
+      strassen(A, B, C, n);  // TODO: rank
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   int n;
   double *A, *B, *C;
+  int tam;
   char *filename_a, *filename_b;
   int np, rank;
   double t1, t2;
@@ -302,6 +442,7 @@ int main(int argc, char *argv[]) {
   filename_b = argv[2];
 
   // #################### MPI INI ####################
+  omp_set_nested(1);  // Enable recursive
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &np);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -310,33 +451,40 @@ int main(int argc, char *argv[]) {
 
   // Read two matrix from file only one process.
   if (rank == 0) {
-    n = getMatrixSize(filename_a);
+    tam = getMatrixSize(filename_a);
+    n = nextPowerOfTwo(tam);
 
-    if (n != getMatrixSize(filename_b)) {
+    if (tam != getMatrixSize(filename_b)) {
       printf("Las matrices deben tener el mismo tamano.\n");
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
-    printf("Tamano: %dx%d\n", n, n);
+    printf("Tamano: %dx%d\n", tam, tam);
 
-    A = createMatrix(n);
-    B = createMatrix(n);
+    A = createMatrix(tam);
+    B = createMatrix(tam);
     C = createMatrix(n);
 
     readMatrix(filename_a, A);
     readMatrix(filename_b, B);
+
+    A = matrix_to_mPower(A, tam);
+    B = matrix_to_mPower(B, tam);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);  // Wait all process.
 
   t1 = MPI_Wtime();
-  preproc_strassen(A, B, C, n);  // TODO: rank
+  strassen_mpi(A, B, C, n, rank, np);
   t2 = MPI_Wtime();
 
-  // Print matrix.
+  // Print matrix result.
   if (rank == 0) {
     printf("Time: %3.3lf seg.\n", t2 - t1);
-    printMatrixf(C, n);
+
+    // Convert matrix powr of two to real size.
+    C = mPower_to_matrix(C, tam);
+    printMatrixf(C, tam);
   }
 
   free(A);
@@ -344,7 +492,7 @@ int main(int argc, char *argv[]) {
   free(C);
 
   MPI_Finalize();
-  // #################### MPI END #################### 
+  // #################### MPI END ####################
 
   return 0;
 }

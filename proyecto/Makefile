@@ -1,6 +1,6 @@
 APP=strassen_mpi_omp
 ARGS=matrix_1000.txt matrix_1000.txt
-NUM_THREADS=1
+NUM_THREADS=3
 PROC=1
 
 CC_FLAGS=-O2 -m64 -lm -lc -fopenmp
