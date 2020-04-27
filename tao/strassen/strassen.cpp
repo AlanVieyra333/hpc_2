@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
 
   printf("Time: %lf seg.\n", ((((float)t2 - (float)t1) / CLOCKS_PER_SEC)));
 
-  // printMatrixf(C, n);
+  printMatrixf(C, n);
 
   free(A);
   free(B);
