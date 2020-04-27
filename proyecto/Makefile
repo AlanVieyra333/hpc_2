@@ -4,7 +4,7 @@ NUM_THREADS=4
 PROC=2
 
 CC_FLAGS=-O2 -m64 -lm -lc -fopenmp
-RUN_FLAGS=-np ${PROC} -mca btl ^openib
+RUN_FLAGS=-np ${PROC} -mca btl ^openib --bind-to-socket
 CLANG=c
 MPICC=mpicc
 #MPICC=/usr/lib64/openmpi/1.4-gcc/bin/mpicc
@@ -13,7 +13,7 @@ MPIRUN=mpirun
 
 .PHONY: run clean
 run: ${APP}.o
-	bash -c "export OMP_NUM_THREADS=${NUM_THREADS} && ${MPIRUN} ${RUN_FLAGS} ${APP}.o ${ARGS} --bind-to-socket"
+	bash -c "export OMP_NUM_THREADS=${NUM_THREADS} && ${MPIRUN} ${RUN_FLAGS} ${APP}.o ${ARGS}"
 
 ${APP}.o: ${APP}.${CLANG}
 	${MPICC} -o ${APP}.o ${APP}.${CLANG} ${CC_FLAGS}

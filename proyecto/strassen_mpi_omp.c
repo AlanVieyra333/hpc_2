@@ -92,14 +92,14 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                       : a12) depend(out    \
                                                     : a21) \
     depend(out                                             \
-           : a22) 
+           : a22) if (tam == n)
     { divide_m(A, a11, a12, a21, a22, tam); }
 #pragma omp task depend(out                                \
                         : a11) depend(out                  \
                                       : a12) depend(out    \
                                                     : a21) \
     depend(out                                             \
-           : a22) 
+           : a22) if (tam == n)
     { divide_m(B, b11, b12, b21, b22, tam); }
 
     // Calculating p1 to p7: #############################################
@@ -110,7 +110,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                                     : b11) depend(in     \
                                                                   : b22) \
     depend(out                                                           \
-           : p1) 
+           : p1) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -128,7 +128,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                       : a22) depend(in     \
                                                     : b11) \
     depend(out                                             \
-           : p2) 
+           : p2) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
 
@@ -142,7 +142,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                       : b22) depend(in     \
                                                     : b11) \
     depend(out                                             \
-           : p3) 
+           : p3) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
 
@@ -156,7 +156,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                       : b11) depend(in     \
                                                     : a22) \
     depend(out                                             \
-           : p4) 
+           : p4) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
 
@@ -170,7 +170,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                       : a12) depend(in     \
                                                     : b22) \
     depend(out                                             \
-           : p5) 
+           : p5) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
 
@@ -185,7 +185,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                                     : b11) depend(in     \
                                                                   : b12) \
     depend(out                                                           \
-           : p6) 
+           : p6) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -203,7 +203,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                                     : b21) depend(in     \
                                                                   : b22) \
     depend(out                                                           \
-           : p7) 
+           : p7) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -219,11 +219,11 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
     // calculating c21, c21, c11 e c22:
     // #############################################
 
-#pragma omp task depend(in : p3) depend(in : p5) depend(out : c12) 
+#pragma omp task depend(in : p3) depend(in : p5) depend(out : c12) if (tam == n)
     {
       sum(p3, p5, c12, newTam);  // c12 = p3 + p5
     }
-#pragma omp task depend(in : p2) depend(in : p4) depend(out : c21) 
+#pragma omp task depend(in : p2) depend(in : p4) depend(out : c21) if (tam == n)
     {
       sum(p2, p4, c21, newTam);  // c21 = p2 + p4
     }
@@ -233,7 +233,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                                   : p5) depend(in    \
                                                                : p7) \
     depend(out                                                       \
-           : c11) 
+           : c11) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -251,7 +251,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                                   : p3) depend(in    \
                                                                : p6) \
     depend(out                                                       \
-           : c22) 
+           : c22) if (tam == n)
     {
       double *result1 = createMatrix(newTam);
       double *result2 = createMatrix(newTam);
@@ -272,7 +272,7 @@ void strassen(double *A, double *B, double *C, uint32_t tam) {
                                       : c12) depend(in     \
                                                     : c21) \
     depend(in                                              \
-           : c22) 
+           : c22) if (tam == n)
     { group_m(C, c11, c12, c21, c22, tam); }
 
 #pragma omp taskwait
@@ -473,7 +473,7 @@ void strassen_mpi(double *A, double *B, double *C, int tam, int rank, int np) {
 #pragma omp single
     {
       if (rank == 0) {
-        strassen(A, B, C, tam);  // TODO: rank
+        strassen(A, B, C, tam);
       }
     }
   }
