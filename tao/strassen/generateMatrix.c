@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  srand((unsigned)time(NULL));
+  srand(123);
 
   unsigned int n = atoi(argv[1]);
 
