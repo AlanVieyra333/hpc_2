@@ -27,6 +27,8 @@
  * http://en.wikipedia.org/w/index.php?title=Strassen_algorithm&oldid=498910018#Source_code_of_the_Strassen_algorithm_in_C_language
  */
 
+int n, np, rank;
+
 void strassen(double *A, double *B, double *C, uint32_t tam);
 void divide_m(double *M, double *m11, double *m12, double *m21, double *m22,
               uint32_t tam);
@@ -39,7 +41,7 @@ void printMatrix(double *matrix, uint32_t tam);
 void printMatrixf(double *matrix, uint32_t tam);
 double *createMatrix(uint32_t tam);
 
-uint32_t nextPowerOfTwo(uint32_t n) { return pow(2, (int)ceil(log2(n))); }
+uint32_t nextPowerOfTwo(uint32_t x) { return pow(2, (int)ceil(log2(x))); }
 
 void ikjalgorithm(double *A, double *B, double *C, uint32_t tam) {
   int i, j, k;
@@ -413,24 +415,25 @@ double *createMatrix(uint32_t tam) {
   return matrix;
 }
 
-void strassen_mpi(double *A, double *B, double *C, int n, int rank, int np) {
+void strassen_mpi(double *A, double *B, double *C, int tam, int rank, int np) {
 #pragma omp parallel
   {
     // printf("El proceso %d,%d se inicia.\n", rank, omp_get_thread_num());
 
 #pragma omp single
     {
-      strassen(A, B, C, n);  // TODO: rank
+      if (rank == 0)
+      {
+        strassen(A, B, C, tam);  // TODO: rank
+      }
     }
   }
 }
 
 int main(int argc, char *argv[]) {
-  int n;
   double *A, *B, *C;
-  int tam;
+  uint32_t tam;
   char *filename_a, *filename_b;
-  int np, rank;
   double t1, t2;
 
   if (argc < 3) {
@@ -485,11 +488,11 @@ int main(int argc, char *argv[]) {
     // Convert matrix powr of two to real size.
     C = mPower_to_matrix(C, tam);
     printMatrixf(C, tam);
-  }
 
-  free(A);
-  free(B);
-  free(C);
+    free(A);
+    free(B);
+    free(C);
+  }
 
   MPI_Finalize();
   // #################### MPI END ####################

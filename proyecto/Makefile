@@ -1,7 +1,7 @@
 APP=strassen_mpi_omp
 ARGS=matrix_1000.txt matrix_1000.txt
-NUM_THREADS=3
-PROC=1
+NUM_THREADS=4
+PROC=2
 
 CC_FLAGS=-O2 -m64 -lm -lc -fopenmp
 RUN_FLAGS=-np ${PROC} -mca btl ^openib
